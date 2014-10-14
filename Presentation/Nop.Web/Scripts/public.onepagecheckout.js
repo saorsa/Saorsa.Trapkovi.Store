@@ -2,7 +2,9 @@
 ** nopCommerce one page checkout
 */
 
-
+/*
+Changed by Andrey 10/13/2014 - made confirmPaymentMethod
+*/
 var Checkout = {
     loadWaiting: false,
     failureUrl: false,
@@ -17,10 +19,10 @@ var Checkout = {
     ajaxFailure: function () {
         location.href = Checkout.failureUrl;
     },
-    
+
     _disableEnableAll: function (element, isDisabled) {
         var descendants = element.find('*');
-        $(descendants).each(function() {
+        $(descendants).each(function () {
             if (isDisabled) {
                 $(this).attr('disabled', 'disabled');
             } else {
@@ -29,10 +31,10 @@ var Checkout = {
         });
 
         if (isDisabled) {
-                element.attr('disabled', 'disabled');
-            } else {
-                element.removeAttr('disabled');
-            }
+            element.attr('disabled', 'disabled');
+        } else {
+            element.removeAttr('disabled');
+        }
     },
 
     setLoadWaiting: function (step, keepDisabled) {
@@ -80,7 +82,7 @@ var Checkout = {
                 $('#opc-' + e).addClass('allow');
             });
         }
-        
+
         //TODO move it to a new method
         if ($("#billing-address-select").length > 0) {
             Billing.newAddress(!$('#billing-address-select').val());
@@ -136,7 +138,7 @@ var Billing = {
         if (Checkout.loadWaiting != false) return;
 
         Checkout.setLoadWaiting('billing');
-        
+
         $.ajax({
             cache: false,
             url: this.saveUrl,
@@ -221,7 +223,7 @@ var Shipping = {
         if (Checkout.loadWaiting != false) return;
 
         Checkout.setLoadWaiting('shipping');
-        
+
         $.ajax({
             cache: false,
             url: this.saveUrl,
@@ -263,14 +265,14 @@ var ShippingMethod = {
         this.saveUrl = saveUrl;
     },
 
-    validate: function() {
+    validate: function () {
         var methods = document.getElementsByName('shippingoption');
-        if (methods.length==0) {
+        if (methods.length == 0) {
             alert('Your order cannot be completed at this time as there is no shipping methods available for it. Please make necessary changes in your shipping address.');
             return false;
         }
 
-        for (var i = 0; i< methods.length; i++) {
+        for (var i = 0; i < methods.length; i++) {
             if (methods[i].checked) {
                 return true;
             }
@@ -278,13 +280,13 @@ var ShippingMethod = {
         alert('Please specify shipping method.');
         return false;
     },
-    
+
     save: function () {
         if (Checkout.loadWaiting != false) return;
-        
+
         if (this.validate()) {
             Checkout.setLoadWaiting('shipping-method');
-        
+
             $.ajax({
                 cache: false,
                 url: this.saveUrl,
@@ -333,7 +335,7 @@ var PaymentMethod = {
             alert('Your order cannot be completed at this time as there is no payment methods available for it.');
             return false;
         }
-        
+
         for (var i = 0; i < methods.length; i++) {
             if (methods[i].checked) {
                 return true;
@@ -342,10 +344,10 @@ var PaymentMethod = {
         alert('Please specify payment method.');
         return false;
     },
-    
+
     save: function () {
         if (Checkout.loadWaiting != false) return;
-        
+
         if (this.validate()) {
             Checkout.setLoadWaiting('payment-method');
             $.ajax({
@@ -392,14 +394,13 @@ var PaymentInfo = {
 
     save: function () {
         if (Checkout.loadWaiting != false) return;
-        
         Checkout.setLoadWaiting('payment-info');
         $.ajax({
             cache: false,
             url: this.saveUrl,
             data: $(this.form).serialize(),
             type: 'post',
-            success: this.nextStep,
+            success: this.confirmPaymentMethod,
             complete: this.resetLoadWaiting,
             error: Checkout.ajaxFailure
         });
@@ -421,6 +422,13 @@ var PaymentInfo = {
         }
 
         Checkout.setStepResponse(response);
+    },
+
+    confirmPaymentMethod: function (response) {
+        if (ConfirmOrder.save(true, 'payment-info')) {
+            return true;
+        }
+        return false;
     }
 };
 
@@ -436,9 +444,9 @@ var ConfirmOrder = {
         this.successUrl = successUrl;
     },
 
-    save: function () {
-        if (Checkout.loadWaiting != false) return;
-        
+    save: function (skipLoad, loadingElement) {
+        if (Checkout.loadWaiting != false && skipLoad !== true) return;
+        loadingElement = loadingElement ? loadingElement : 'confirm-order';
         //terms of service
         var termOfServiceOk = true;
         if ($('#termsofservice').length > 0) {
@@ -451,7 +459,7 @@ var ConfirmOrder = {
             }
         }
         if (termOfServiceOk) {
-            Checkout.setLoadWaiting('confirm-order');
+            Checkout.setLoadWaiting(loadingElement);
             $.ajax({
                 cache: false,
                 url: this.saveUrl,
@@ -464,7 +472,7 @@ var ConfirmOrder = {
             return false;
         }
     },
-    
+
     resetLoadWaiting: function (transport) {
         Checkout.setLoadWaiting(false, ConfirmOrder.isSuccess);
     },
@@ -479,7 +487,7 @@ var ConfirmOrder = {
 
             return false;
         }
-        
+
         if (response.redirect) {
             ConfirmOrder.isSuccess = true;
             location.href = response.redirect;
